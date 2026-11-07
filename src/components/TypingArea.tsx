@@ -268,19 +268,39 @@ export const TypingArea: React.FC<TypingAreaProps> = ({
     setTotalKeystrokes(prev => prev + 1);
 
     const targetGrapheme = graphemeSegments[currentGraphemeIndex]?.text;
-    if (val.trim() === targetGrapheme?.trim() || val.endsWith(targetGrapheme || '')) {
-      soundEngine.playKeyClick();
-      setLastErrorIndex(null);
-      // Advance to next grapheme cluster
-      const nextStepIdx = keystrokeSteps.findIndex((s, idx) => idx > stepIndex && s.graphemeIndex > currentGraphemeIndex);
-      if (nextStepIdx === -1) {
-        const finalElapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 1;
-        finishTest(finalElapsed);
+    const isTargetSpace = targetGrapheme === ' ' || !targetGrapheme?.trim();
+    const isTypedSpace = val === ' ' || val.endsWith(' ');
+
+    if (isTargetSpace) {
+      if (isTypedSpace) {
+        soundEngine.playKeyClick();
+        setLastErrorIndex(null);
+        // Advance to next grapheme cluster
+        const nextStepIdx = keystrokeSteps.findIndex((s, idx) => idx > stepIndex && s.graphemeIndex > currentGraphemeIndex);
+        if (nextStepIdx === -1) {
+          const finalElapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 1;
+          finishTest(finalElapsed);
+        } else {
+          setStepIndex(nextStepIdx);
+        }
       } else {
-        setStepIndex(nextStepIdx);
+        handleMistake();
       }
     } else {
-      handleMistake();
+      if (val.trim() === targetGrapheme?.trim() || val.endsWith(targetGrapheme || '')) {
+        soundEngine.playKeyClick();
+        setLastErrorIndex(null);
+        // Advance to next grapheme cluster
+        const nextStepIdx = keystrokeSteps.findIndex((s, idx) => idx > stepIndex && s.graphemeIndex > currentGraphemeIndex);
+        if (nextStepIdx === -1) {
+          const finalElapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 1;
+          finishTest(finalElapsed);
+        } else {
+          setStepIndex(nextStepIdx);
+        }
+      } else {
+        handleMistake();
+      }
     }
 
     // Reset input value so it can accept next character
@@ -535,16 +555,20 @@ export const TypingArea: React.FC<TypingAreaProps> = ({
             const isCurrent = idx === currentGraphemeIndex;
             const isError = lastErrorIndex === idx;
 
-            if (seg.text === ' ') {
+            if (seg.text === ' ' || !seg.text.trim()) {
+              let spaceStyle = 'border-slate-300';
+              if (isCompleted) {
+                spaceStyle = 'border-transparent';
+              } else if (isCurrent) {
+                spaceStyle = isError
+                  ? 'border-rose-500 bg-rose-200 ring-2 ring-rose-400 rounded-xs'
+                  : 'border-emerald-500 bg-emerald-100 rounded-xs';
+              }
+
               return (
                 <span
                   key={idx}
-                  className={`inline-block w-2.5 sm:w-3.5 border-b-2 transition-colors ${isCurrent
-                      ? 'border-emerald-500 bg-emerald-100 rounded-xs'
-                      : isCompleted
-                        ? 'border-transparent'
-                        : 'border-slate-300'
-                    }`}
+                  className={`inline-block w-3 sm:w-4 border-b-4 transition-colors ${spaceStyle}`}
                 >
                   &nbsp;
                 </span>
@@ -585,8 +609,22 @@ export const TypingArea: React.FC<TypingAreaProps> = ({
         <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
           এখন চাপুন:
         </span>
-        <div className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-1.5 rounded-full shadow-md font-mono text-sm font-bold border border-slate-700">
-          <span className="text-amber-400">{currentStep?.display || 'Space'}</span>
+        <div
+          className={`inline-flex items-center gap-2 ${
+            lastErrorIndex !== null && lastErrorIndex === currentGraphemeIndex
+              ? 'bg-rose-950 border-rose-500 ring-2 ring-rose-400'
+              : 'bg-slate-900 border-slate-700'
+          } text-white px-4 py-1.5 rounded-full shadow-md font-mono text-sm font-bold border transition-colors`}
+        >
+          <span
+            className={
+              lastErrorIndex !== null && lastErrorIndex === currentGraphemeIndex
+                ? 'text-rose-400'
+                : 'text-amber-400'
+            }
+          >
+            {currentStep?.display || 'Space'}
+          </span>
           <span className="text-slate-400 text-xs font-normal">→</span>
           <span className="text-emerald-400 font-bangla font-bold text-lg">
             {currentStep?.charName || 'স্পেস'}
